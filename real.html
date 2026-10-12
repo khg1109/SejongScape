@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SejongScape · 세종 3D 지도</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; font: 16px/1.6 system-ui, sans-serif; color: #e8f0eb; background: #152329; }
+      #map { width: 100%; height: 100vh; height: 100dvh; }
+      header { position: absolute; z-index: 10; left: 12px; top: 12px; width: min(320px, calc(100% - 84px)); max-height: calc(100dvh - 110px); overflow:auto; padding: 12px; border-radius: 12px; background: #152329ed; }
+      h1 { font-size: 18px; margin: 0 0 4px; }
+      p { margin: 10px 0; }
+      a { color: #abe9cd; }
+      small { display: block; color: #b9c9c3; }
+      summary { cursor:pointer; font-size:14px; }
+      #status { font-size:14px; margin:4px 0; }
+      details { margin-top:8px; }
+      details p { font-size:14px; }
+      select { width:100%; min-height:36px; margin:6px 0; color:#e8f0eb; background:#23383f; border:1px solid #698279; border-radius:6px; font:inherit; font-size:14px; }
+    </style>
+  </head>
+  <body>
+    <div id="map" aria-label="브이월드 세종시 지도"></div>
+    <header>
+      <h1>세종 3D 지도</h1>
+      <p id="status" role="status">연결 설정을 확인하고 있습니다.</p>
+      <select id="place" aria-label="살펴볼 장소" disabled>
+        <option value="">주요 장소 가까이 보기</option>
+        <option value="government">정부세종청사</option>
+        <option value="library">국립세종도서관</option>
+        <option value="archives">대통령기록관</option>
+        <option value="lake">세종호수공원</option>
+      </select>
+      <details>
+        <summary>자료와 조작 안내</summary>
+        <p>확대·축소 버튼과 지도 드래그로 주변을 살펴보세요.</p>
+        <p>건물과 지형은 브이월드 제공 자료입니다. 지역별 촬영·갱신 시점을 확인하지 않아 현재 모습과 차이가 있을 수 있습니다.</p>
+        <p>보도·신호등의 실측 위치와 실시간 사람·차량 움직임은 검증하지 않았습니다.</p>
+        <a href="/">기존 시뮬레이션으로 돌아가기</a>
+      </details>
+    </header>
+    <script type="module" src="/src/real-city.js"></script>
+  <script type="module" src="/src/visit-ui.js"></script></body>
+</html>
+

@@ -1,0 +1,13 @@
+node_modules/
+dist/
+output/
+발표자료/
+.playwright-cli/
+scripts/.cache/
+.env
+.env.*
+!.env.example
+*.log
+*.pem
+*.key
+.aws/
