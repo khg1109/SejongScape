@@ -2,10 +2,20 @@ export function project(point, center) {
   return [(point.lon - center[1]) * 111320 * Math.cos(center[0] * Math.PI / 180), -(point.lat - center[0]) * 111320];
 }
 
-export function buildingHeight(tags) {
+// A building identifier such as "902동" is not a floor count.
+export function buildingLevels(tags = {}) {
+  const raw = tags['building:levels'];
+  if (typeof raw !== 'string' && typeof raw !== 'number') return null;
+  const text = String(raw).trim();
+  if (!/^(?:\d+(?:\.\d+)?|\.\d+)$/.test(text)) return null;
+  const value = Number(text);
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+export function buildingHeight(tags = {}) {
   const explicit = Number.parseFloat(tags.height);
-  if (explicit > 0) return { value: explicit, estimated: false };
-  const floors = Number.parseFloat(tags['building:levels']);
+  if (Number.isFinite(explicit) && explicit > 0) return { value: explicit, estimated: false };
+  const floors = buildingLevels(tags);
   if (floors > 0) return { value: floors * 3.2, estimated: true };
   return { value: ({ apartments: 64, office: 28, commercial: 24, retail: 12, garage: 4, garages:4, roof: 4, shed: 3, house:6.4, detached:6.4, semidetached_house:6.4, bungalow:3.2, warehouse:8, industrial:10, barn:5 })[tags.building] || 14, estimated: true };
 }

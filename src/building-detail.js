@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
-import {buildingHeight,contains} from './map.js';
+import {buildingHeight,buildingLevels,contains} from './map.js';
 
 export function buildingStyle(tags){
   if(['apartments','dormitory'].includes(tags.building))return 'apartments';
@@ -15,7 +15,7 @@ export function detailGeometry(item,input){
   const tags=item.tags||{},style=buildingStyle(tags),points=[...input];
   if(points.length<3)return null;
   if(points[0][0]!==points.at(-1)[0]||points[0][1]!==points.at(-1)[1])points.push(points[0]);
-  const height=buildingHeight(tags).value,levels=Math.max(1,Math.min(100,Number.parseInt(tags['building:levels'])||Math.round(height/(style==='industrial'?5:3.2)))),floor=height/levels;
+  const height=buildingHeight(tags).value,levels=Math.max(1,Math.min(100,Math.floor(buildingLevels(tags))||Math.round(height/(style==='industrial'?5:3.2)))),floor=height/levels;
   const seed=Number(item.id)||1,shade=[0xe5e1d7,0xd8d8ce,0xc8c9c3,0xd8cbb9,0xbcc7c9][seed%5];
   const wallColor=new THREE.Color(/^#[0-9a-f]{6}$/i.test(tags['building:colour']||'')?tags['building:colour']:shade);
   const positions=[],uv=[],colors=[],details=[],windows=[];

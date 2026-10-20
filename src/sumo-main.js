@@ -5,9 +5,11 @@ import {project,buildingHeight} from './map.js';
 import {sampleFrame,trafficStats} from './sumo-model.js';
 import './sumo.css';
 import {mountScenarioPanel} from './sumo-scenario-panel.js';
+import {mountTripViewer} from './2026-10-16-trip-viewer.js';
 document.querySelector('#app').innerHTML=`<main id="view" aria-label="SUMO 교통 시뮬레이션 지도"></main><header><a href="/">S · SEJONGSCAPE</a><a href="/traffic">실제 교통정보 ↗</a><a href="/">도시 지도로 돌아가기 ↗</a></header><section class="panel"><div class="kicker">SUMO 교통 실험</div><h1>도로 위의 흐름을<br>살펴보세요.</h1><p id="area">세종 시범 구간을 불러오는 중</p><div class="badge">시뮬레이션 · 실시간 교통정보 아님</div><dl><div><dt>운행 중 차량</dt><dd id="count">—</dd></div><div><dt>평균 속도</dt><dd><span id="speed">—</span><small> km/h</small></dd></div><div><dt>정지 차량</dt><dd id="stopped">—</dd></div></dl><p class="note">세종의 지도 도로망 위에서 SUMO가 계산한 차량 움직임입니다. 교통량과 신호 주기는 실측 자료로 보정하지 않았습니다.</p><div class="actions"><button id="focus">차량 가까이 보기</button><button id="overview">전체 구간</button></div><details><summary>자료와 재현 범위</summary><p id="metadata"></p><p>차량 위치·속도·신호 상태는 동일한 SUMO 실행 결과입니다. 수요는 임의 생성, 신호 계획은 SUMO 추정값입니다. 건물 높이 일부와 지형은 단순화했습니다. 실측 교통량, 실제 신호 주기, 버스 노선은 미연동입니다.</p><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors · ODbL</a></details></section><section class="playbar" aria-label="시뮬레이션 재생"><button id="play" disabled>재생</button><button id="restart" disabled>처음으로</button><label>재생 속도 <select id="rate"><option value="1">1배</option><option value="2">2배</option><option value="5">5배</option></select></label><label class="timeline">시뮬레이션 경과 <input id="seek" type="range" min="0" max="599" value="0" step="1" disabled></label><output id="time">00:00 / 10:00</output></section><div id="status" role="status">SUMO 결과를 불러오는 중입니다…</div><div class="legend"><span>● <b>차량</b> 민트</span><span>● <b>정지 차량</b> 주황</span><span>신호등 색상 = 시뮬레이션 상태</span><span>드래그 회전 · 휠 확대 · 우클릭 이동</span></div>`;
 const $=s=>document.querySelector(s);
 mountScenarioPanel();
+mountTripViewer();
 async function start(){
  const results=await Promise.all(['/data/sumo-pilot.json','/data/sejong.json'].map(async url=>{const r=await fetch(url);if(!r.ok)throw Error('자료 응답 '+r.status);return r.json();}));const[data,map]=results;
  if(!data.frames?.length)throw Error('시뮬레이션 프레임이 없습니다.');

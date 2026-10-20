@@ -11,3 +11,13 @@ scripts/.cache/
 *.pem
 *.key
 .aws/
+
+# Private runtime configuration and research records
+*-access-private*
+*-passwords.txt
+*.sqlite*
+*.db
+*aws-build/
+2026-10-20-github-review/
+public/data/2026-10-16-trips/
+*.csv

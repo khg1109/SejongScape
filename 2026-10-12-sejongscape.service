@@ -1,0 +1,24 @@
+[Unit]
+Description=SejongScape AWS web server
+After=network.target
+
+[Service]
+Type=simple
+User=sejongscape
+Group=sejongscape
+WorkingDirectory=/opt/sejongscape
+EnvironmentFile=/etc/sejongscape/2026-10-12-sejongscape.env
+ExecStart=/usr/local/bin/node /opt/sejongscape/server/2026-10-12-aws-server.mjs
+Restart=on-failure
+RestartSec=3
+StateDirectory=sejongscape
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/sejongscape
+
+[Install]
+WantedBy=multi-user.target

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildingHeight, contains } from './map.js';
+import { buildingHeight, buildingLevels, contains } from './map.js';
 import {createBuildingDetails} from './building-detail.js';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 
@@ -80,7 +80,7 @@ export function createArchitecture() {
       facades[type].side=THREE.DoubleSide;const walls=new THREE.Mesh(sides,facades[type]);walls.castShadow=walls.receiveShadow=true;group.add(walls);
       if(government){
         group.userData.description='OSM 외곽선 · 정부청사 옥상정원 특징 반영';
-        const floors=Math.max(1,Number.parseInt(tags['building:levels'])||Math.round(height.value/3.2));
+        const floors=Math.max(1,Math.floor(buildingLevels(tags))||Math.round(height.value/3.2));
         const bands=[];
         for(let i=1;i<points.length;i++){
           const a=points[i-1],b=points[i],dx=b[0]-a[0],dz=b[1]-a[1],length=Math.hypot(dx,dz);if(length<2)continue;
