@@ -49,6 +49,6 @@ test('expired sessions and network errors become safe JSON errors rather than lo
 });
 test('missing private data in local mode returns 404 with setup guidance, while tracked data stays local',async t=>{
   const base=await serve(t,{awsMode:false,fetcher:async()=>{throw Error('must not call upstream');}});
-  const missing=await fetch(base+path);assert.equal(missing.status,404);assert.match(await missing.text(),/npm run dev:aws/);
+  const missing=await fetch(base+'/data/2026-10-16-trips/2026-11-07-missing-test.json');assert.equal(missing.status,404);assert.match(await missing.text(),/npm run dev:aws/);
   const existing=await fetch(base+'/data/sejong.json');assert.equal(existing.status,418);
 });

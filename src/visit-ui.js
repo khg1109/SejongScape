@@ -1,3 +1,6 @@
+// Local offline viewers have no authenticated visit service.
+const isLocalViewer=['localhost','127.0.0.1','[::1]'].includes(location.hostname);
+if(!isLocalViewer){
 fetch('/api/me',{cache:'no-store'})
  .then(response=>response.ok?response.json():null)
  .then(user=>{
@@ -23,3 +26,5 @@ async function recordVisit(){
 }
 recordVisit();
 window.addEventListener('pageshow',event=>{if(event.persisted)recordVisit();});
+
+}

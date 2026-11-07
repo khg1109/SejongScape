@@ -1,15 +1,13 @@
 import {existsSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {restoreOfflineData} from './2026-11-07-offline-data.mjs';
 import {loginAws} from '../server/2026-11-07-aws-data.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const args = process.argv.slice(2);
 const local = args.includes('--local');
-const required = ['2026-10-16-trips/2026-10-16-manifest.json','2026-10-16-trip-city.json',
-  '2026-10-16-dispersal/2026-10-16-network.json','2026-11-03-road-lab.json',
-  '2026-11-03-csv-fleet/2026-11-03-index.json','2026-11-05-sumo-demand50/2026-11-04-progress.json'];
-const awsMode = !local && (args.includes('--aws') || required.some(name => !existsSync(resolve(root,'public/data',name))));
+const awsMode = args.includes('--aws');
 async function readPassword() {
   if (!process.stdin.isTTY || !process.stdout.isTTY) throw Error('터미널에서 npm run dev:aws를 실행해 사이트 비밀번호를 입력하세요. 자동 실행은 SEJONGSCAPE_AWS_PASSWORD 환경변수를 사용합니다.');
   process.stdout.write('AWS 사이트 접속 비밀번호 (화면에 표시되지 않음): ');
@@ -35,6 +33,10 @@ async function readPassword() {
 try {
   const version = process.versions.node.split('.').map(Number);
   if (version[0] < 22 || (version[0] === 22 && version[1] < 13)) throw Error('Node.js 22.13 이상이 필요합니다 (node:sqlite 사용).');
+  if (!awsMode && !local) {
+    const result = await restoreOfflineData(root);
+    console.log('공개용 가상 통행 데이터 준비 완료:', result.files, '개 파일 (AWS 연결 없음)');
+  }
   if (awsMode) {
     console.log('AWS와 같은 데이터로 실행합니다. 인터넷 연결과 sejongscape.com 사이트 접속 비밀번호가 필요합니다.');
     let password = process.env.SEJONGSCAPE_AWS_PASSWORD || await readPassword();

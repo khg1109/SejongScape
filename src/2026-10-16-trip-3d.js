@@ -31,6 +31,14 @@ async function get(url,type='json'){const r=await fetch(url);if(!r.ok)throw Erro
 async function start(){
  const [manifest,geo,city,dispersal]=await Promise.all([get('/data/2026-10-16-trips/2026-10-16-manifest.json'),get('/data/2026-10-16-trips/2026-10-16-routes.json'),get('/data/2026-10-16-trip-city.json'),loadTripDispersal()]);
  const day=new TripDay(manifest);
+ if(manifest.publicReplay){
+  document.querySelector('.csv-panel > .note').innerHTML='공개용 가상 통행 · AWS 연결 없음<br><span id="csv-source-total">자료를 불러오는 중</span>';
+  document.querySelector('.csv-panel .badge').textContent='50명 이상 집계 기반 · 개인 기록 없음';
+  document.querySelector('label[for="csv-person-id"]').textContent='가상 통행 번호 조회';
+  document.querySelector('.csv-panel details').innerHTML='<summary>공개 데이터의 범위</summary><p>50명 이상이 포함된 지역·시간대·수단별 인원수를 50명 단위로 내림한 집계에서 만든 가상 통행입니다. ID, 시각, 소요시간은 새로 생성했습니다. 개인별 이동 연결·성별·연령·거주지·목적은 포함하지 않습니다. 실제 개인 기록이나 AWS 원본과 같은 통행량을 나타내지 않습니다. 도로 위치·경로는 추정이며 SUMO 결과는 별도 화면에서 확인합니다.</p><a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors · ODbL</a>';
+  document.querySelector('.csv-footnote').textContent='00:00–24:00 · 공개용 가상 통행 · 개인의 실제 이동 기록 아님';
+ }
+
  for(const name of ['origin','destination'])$('#csv-'+name).insertAdjacentHTML('beforeend',manifest.regions.map((s,i)=>`<option value="${i}">${escape(s)}</option>`).join(''));
  $('#csv-purpose').insertAdjacentHTML('beforeend',manifest.purposes.map((s,i)=>`<option value="${i}">${escape(s)}</option>`).join(''));
  const highest=Math.max(...manifest.hourly);$('.csv-chart').innerHTML=manifest.hourly.map((n,h)=>`<span style="height:${n/highest*24}px" title="${h}시 출발 ${fmt(n)}건"></span>`).join('');
@@ -82,7 +90,7 @@ async function start(){
  }
  function showPerson(id,preferred){
   const found=day.person(id);if(!found.length){$('.csv-toast').textContent=`개인 ID ${id}의 기록이 없습니다.`;$('.csv-toast').hidden=false;return;}$('.csv-toast').hidden=true;personal=found;personId=id;$('#csv-local-only').checked=false;markers.material.size=12;$('#csv-person-id').value=id;for(const el of document.querySelectorAll('[data-mode]'))el.checked=true;for(const name of ['origin','destination','purpose'])$('#csv-'+name).value='';
-  $('.csv-info').hidden=false;$('.csv-legend').hidden=true;$('#csv-person-title').textContent=`개인 ${id} · 하루 ${found.length}건`;$('#csv-person-meta').textContent=`성별 코드 ${found[0].gender} · 연령 그룹 ${found[0].age} · 거주 ${manifest.regions[found[0].home]}`;
+  $('.csv-info').hidden=false;$('.csv-legend').hidden=true;$('#csv-person-title').textContent=manifest.publicReplay?`가상 통행 ${id}`:`개인 ${id} · 하루 ${found.length}건`;$('#csv-person-meta').textContent=manifest.publicReplay?'개인 속성 없음 · 독립적으로 생성한 통행':`성별 코드 ${found[0].gender} · 연령 그룹 ${found[0].age} · 거주 ${manifest.regions[found[0].home]}`;
   $('.csv-chain').innerHTML=found.map(r=>`<button data-trip="${r.seq}" aria-pressed="false"><b>${r.seq}. ${escape(manifest.regions[r.origin])} → ${escape(manifest.regions[r.destination])}</b><small>${clock(r.start)} → ${clock(r.end)} · 수단 ${r.mode} · ${escape(manifest.purposes[r.purpose])}</small><small>장소 유형 ${r.originType} → ${r.destinationType}${r.start===r.end?' · 0분 기록':''}</small></button>`).join('');
   for(const el of document.querySelectorAll('[data-trip]'))el.onclick=()=>choose(found.find(r=>r.seq===Number(el.dataset.trip)));
   choose(found.find(r=>r.seq===preferred)||found.find(r=>r.start<=time&&time<r.end)||found[0]);
@@ -105,7 +113,7 @@ async function start(){
  }requestAnimationFrame(draw);
  const files=Object.entries(manifest.files).filter(([k])=>k.startsWith('hour-')).map(([,f])=>f);let next=0,done=0;
  await Promise.all(Array.from({length:3},async()=>{while(next<files.length){const file=files[next++];day.add(await get(file.url,'binary'),file.records);done++;$('#status').textContent=`하루 전체 통행을 불러오는 중… ${done}/${files.length} (${fmt(day.count)}건)`;}}));
- if(day.count!==manifest.total)throw Error('전체 통행 건수 검증 실패');dispersal.assign(day);ready=true;$('#status').hidden=true;$('#csv-source-total').textContent=`${fmt(manifest.total)}건 · ${fmt(manifest.people)}명 · 하루 전체`;
+ if(day.count!==manifest.total)throw Error('전체 통행 건수 검증 실패');dispersal.assign(day);ready=true;$('#status').hidden=true;$('#csv-source-total').textContent=manifest.publicReplay?`${fmt(manifest.total)}건 · 공개용 가상 통행 · 하루 재생`:`${fmt(manifest.total)}건 · ${fmt(manifest.people)}명 · 하루 전체`;
  $('#twin-street').disabled=false;$('#twin-follow').disabled=false;
  for(const id of ['play','start','seek','find','reset','focus','overview'])$('#csv-'+id).disabled=false;update(true);
 }

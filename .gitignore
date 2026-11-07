@@ -59,3 +59,7 @@ __pycache__/
 /docs/*-proof.*
 /docs/*-preview.*
 /docs/*-paused-jobs.*
+
+# Reviewed public aggregate-derived replay bundle only
+!/public/data/2026-11-07-offline/
+!/public/data/2026-11-07-offline/**

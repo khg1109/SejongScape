@@ -16,13 +16,19 @@ async function start(){
  const trips=new DataView(tripBuffer),count=tripBuffer.byteLength/16;
  if(count!==manifest.counts.mapped)throw Error('통행 건수가 맞지 않습니다.');
  $('total').textContent=fmt(manifest.counts.total);$('mapped').textContent=fmt(count);$('unmapped').textContent=fmt(manifest.counts.noLocation);
+ if(manifest.publicReplay){
+  document.querySelector('.panel.left p.muted').textContent='공개용 가상 차량 6,000대 · AWS 원본 결과와 다름';
+  $('total').parentElement.firstChild.textContent='가상 수요';
+  $('mapped').parentElement.firstChild.textContent='실험 투입';
+  document.querySelector('a[href*="view=pilot"]').hidden=true;
+ }
  if(manifest.sampling){
   document.querySelector('.panel.left p.muted').textContent=`통행 ${Math.round(manifest.sampling.removeFraction*100)}% 무작위 감축 · ${fmt(count)}건으로 SUMO 재계산`;
   $('mapped').parentElement.firstChild.textContent='실험 투입';
   $('mapped').title=`위치 배정 ${fmt(manifest.counts.originalMapped)}건 중 ${fmt(manifest.counts.sampleExcluded)}건 제외`;
  }
  $('vehicle-id').max=count;$('engine').textContent=manifest.engine;
- $('progress').textContent=manifest.runState==='superseded'?'이전 1차로 계산 중단 · 보존된 결과':manifest.complete?'하루 전체 계산 완료':`전체 계산 미완료 · ${clock(manifest.availableEnd-5)}까지 재생 가능`;
+ $('progress').textContent=manifest.runState==='superseded'?'이전 1차로 계산 중단 · 보존된 결과':manifest.complete?(manifest.publicReplay?'공개용 가상 수요 · 06:00–26:00 계산 완료':'하루 전체 계산 완료'):`전체 계산 미완료 · ${clock(manifest.availableEnd-5)}까지 재생 가능`;
  $('refresh').hidden=manifest.complete||manifest.runState==='superseded';
  $('refresh').onclick=()=>location.reload();
  $('assumptions').textContent=manifest.assumptions.join('. ')+'. CSV 도착이 출발보다 이르거나 같은 '+fmt(manifest.counts.nonpositiveCsvDuration)+'건도 출발 시각을 기준으로 입력했습니다.';
@@ -88,7 +94,7 @@ async function start(){
   const r=row(id),old=metric(base,id),changedData=await data(comparison),changed=metric(changedData,id);
   if(id!==selected||g!==generation)return;
   $('vehicle-id').value=id+1;$('jump').disabled=false;
-  $('vehicle-info').textContent=`차량 ${fmt(id+1)} · ${manifest.regions[r.origin]} → ${manifest.regions[r.dest]} · CSV ${clock(r.depart)} → ${clock(r.arrival)} · 수단 코드 ${r.mode}`;
+  $('vehicle-info').textContent=`차량 ${fmt(id+1)} · ${manifest.regions[r.origin]} → ${manifest.regions[r.dest]} · ${manifest.publicReplay?'가상 시각':'CSV'} ${clock(r.depart)} → ${clock(r.arrival)} · 수단 코드 ${r.mode}`;
   const duration=m=>m.status===4?Math.round(m.duration)+'초':statusName[m.status];
   $('old-duration').textContent=duration(old);$('new-duration').textContent=duration(changed);
   let diff=old.status===4&&changed.status===4?`통행시간 ${Math.round(changed.duration-old.duration)}초 변화`:`기존 ${statusName[old.status]} / 변경 ${statusName[changed.status]}`;
