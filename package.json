@@ -4,11 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --host 127.0.0.1",
+    "dev": "node scripts/2026-11-07-dev.mjs",
     "build": "vite build && node scripts/build-server.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "data:fetch": "node scripts/fetch-map.mjs",
-    "build:web": "vite build"
+    "build:web": "vite build",
+    "dev:aws": "node scripts/2026-11-07-dev.mjs --aws",
+    "dev:local": "node scripts/2026-11-07-dev.mjs --local"
   },
   "dependencies": {
     "three": "^0.186.0",
@@ -17,5 +19,8 @@
   "devDependencies": {
     "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.2"
+  },
+  "engines": {
+    "node": ">=22.13.0"
   }
 }
