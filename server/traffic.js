@@ -1,6 +1,9 @@
+import scope from './2026-11-05-sejong-traffic-scope.js';
+const cityLinkIds=new Set(scope.linkIds);
 import initial from './traffic-initial.js';
+import {trafficUpstream} from './2026-11-05-traffic-upstream.js';
 export const REFRESH_MS=300000;
-const RETRY_MS=3600000;
+const RETRY_MS=60000;
 const reply=data=>Response.json(data,{headers:{'Cache-Control':'private, no-store','Vary':'Cookie','X-Content-Type-Options':'nosniff'}});
 export function observationTime(value){
  if(!/^\d{14}$/.test(String(value)))return null;
@@ -24,16 +27,15 @@ export async function trafficResponse(env,{now=Date.now(),fetcher=fetch}={}){
  try{
   await env.DB.prepare('INSERT OR IGNORE INTO traffic_cache(id,payload,fetched_at,next_attempt,status) VALUES(1,?,0,0,?)').bind(JSON.stringify(initial),'snapshot').run();
   row=await env.DB.prepare('SELECT * FROM traffic_cache WHERE id=?').bind(1).first();
-  if(env.ITS_API_KEY&&now>=row.next_attempt){
+  if((env.ITS_API_KEY||env.ITS_RELAY_URL)&&now>=row.next_attempt){
    // A conditional update grants one global refresh lease across visitors and Workers.
    const lease=await env.DB.prepare('UPDATE traffic_cache SET next_attempt=? WHERE id=1 AND next_attempt<=? RETURNING id').bind(now+RETRY_MS,now).first();
    if(lease){
     try{
-     const url=new URL('https://openapi.its.go.kr:9443/trafficInfo');
-     url.search=new URLSearchParams({apiKey:env.ITS_API_KEY,type:'all',getType:'json',minX:'127.252',maxX:'127.286',minY:'36.489',maxY:'36.513'}).toString();
-     const response=await fetcher(url,{signal:AbortSignal.timeout(12000)});
+     const {url,options}=trafficUpstream(env);
+     const response=await fetcher(url,{...options,signal:AbortSignal.timeout(env.ITS_RELAY_URL?30000:12000)});
      if(!response.ok)throw Error('upstream_http');
-     const items=normalize(await response.json());
+     const items=normalize(await response.json()).filter(item=>cityLinkIds.has(item.id));
      await env.DB.prepare('UPDATE traffic_cache SET payload=?,fetched_at=?,next_attempt=?,status=? WHERE id=1').bind(JSON.stringify(items),now,now+REFRESH_MS,'ok').run();
     }catch{
      await env.DB.prepare('UPDATE traffic_cache SET status=? WHERE id=1').bind('unavailable').run();
@@ -41,7 +43,7 @@ export async function trafficResponse(env,{now=Date.now(),fetcher=fetch}={}){
     row=await env.DB.prepare('SELECT * FROM traffic_cache WHERE id=?').bind(1).first();
    }
   }
- }catch{return reply({items:initial,source:'ITS 국가교통정보센터',mode:'saved',status:'storage_unavailable',fetchedAt:null,nextAttempt:null,serverTime:now});}
- return reply({items:JSON.parse(row.payload),source:'ITS 국가교통정보센터',mode:row.fetched_at?'api':'saved',status:row.status,
+ }catch{return reply({items:initial.filter(item=>cityLinkIds.has(item.id)),scope:scope.scope,geometryCount:scope.linkIds.length,source:'ITS 국가교통정보센터',mode:'saved',status:'storage_unavailable',fetchedAt:null,nextAttempt:null,serverTime:now});}
+ return reply({items:JSON.parse(row.payload).filter(item=>cityLinkIds.has(item.id)),scope:scope.scope,geometryCount:scope.linkIds.length,source:'ITS 국가교통정보센터',mode:row.fetched_at?'api':'saved',status:row.status,
   fetchedAt:row.fetched_at||null,nextAttempt:row.next_attempt||null,serverTime:now,refreshSeconds:REFRESH_MS/1000});
 }

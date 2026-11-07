@@ -10,7 +10,7 @@ import './2026-10-16-trip-3d.css';
 
 const $=s=>document.querySelector(s),fmt=n=>n.toLocaleString('ko-KR');
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-document.title='CSV 통행 흐름 | SejongScape';
+document.title='CSV 통행 재생 | SejongScape';
 $('#app').innerHTML=`<main id="view" aria-label="CSV 개인별 통행 3D 지도"></main><header><a href="/">S · SEJONGSCAPE</a><a href="/traffic">실제 교통정보 ↗</a><a href="/">도시 지도로 돌아가기 ↗</a></header>
 <section class="panel csv-panel"><div class="kicker">SEJONG · DIGITAL CITY</div><h1>도시의 길 위에,<br>하루의 움직임.</h1><p class="note">260316 - Mode&amp;Purpose.csv<br><span id="csv-source-total">전체 자료를 불러오는 중</span></p><div class="badge">원본 시간·목적·코드 / 도로 경로는 추정</div>
 <dl><div><dt>통행 중 · 현재 조건</dt><dd id="csv-active">—</dd></div><div><dt>지도에 표시</dt><dd id="csv-drawn">—</dd></div><div><dt>같은 지역 · 표시 포함</dt><dd id="csv-same">—</dd></div><div><dt>외부 포함·위치 없음</dt><dd id="csv-external">—</dd></div></dl>

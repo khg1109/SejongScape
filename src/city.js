@@ -4,22 +4,25 @@ import {project,buildingHeight,stitchRings,contains} from './map.js';
 import {roadWidth} from './mobility-model.js';
 import {createBuildingDetails} from './building-detail.js';
 import {createSidewalkRenderer,isMappedSidewalk} from './sidewalk.js';
+import {roadSurface} from './2026-11-04-road-surface.js';
 
 export function nearestTiles(index,x,z,radius=3800){
   return index.filter(t=>Math.hypot(t.x-x,t.z-z)<radius).sort((a,b)=>Math.hypot(a.x-x,a.z-z)-Math.hypot(b.x-x,b.z-z));
 }
 
-export async function createCity(scene,onLocal){
+export async function createCity(scene,onLocal,baseIds=new Set(),roadMaterial){
   const response=await fetch('/data/city.json');if(!response.ok)throw Error('도시 지도 불러오기 실패');
   const index=await response.json(),root=new THREE.Group();scene.add(root);
   const buildingDetails=createBuildingDetails();
   const sidewalks=createSidewalkRenderer();
-  const mats={building:new THREE.MeshStandardMaterial({color:0xb8beb8,roughness:.85}),road:new THREE.MeshStandardMaterial({color:0x616c70}),water:new THREE.MeshStandardMaterial({color:0x3d8994,roughness:.3}),green:new THREE.MeshStandardMaterial({color:0x708667}),field:new THREE.MeshStandardMaterial({color:0x999a71})};
+  const mats={building:new THREE.MeshStandardMaterial({color:0xb8beb8,roughness:.85}),road:roadMaterial??new THREE.MeshStandardMaterial({color:0x596873,roughness:.95}),water:new THREE.MeshStandardMaterial({color:0x3d8994,roughness:.3}),green:new THREE.MeshStandardMaterial({color:0x708667}),field:new THREE.MeshStandardMaterial({color:0x999a71})};
   const loaded=new Map(),pending=new Set(),cache=new Map();let requested=[],lastKey='',night=true,revision=0,busy=false;
   const overviewIds=new Set(index.overview.map(e=>`${e.type}/${e.id}`));
   const pos=p=>project(p,index.center);
   function shape(points){return new THREE.Shape(points.map(p=>new THREE.Vector2(p[0],-p[1])));}
   function build(elements,coarse=false){
+    // The base scene owns these features, including its more detailed road surface.
+    elements=elements.filter(e=>!baseIds.has(`${e.type}/${e.id}`));
     const group=new THREE.Group(),detailed=[],buckets={building:[],road:[],path:[],water:[],green:[],field:[]};
     mats.path??=new THREE.MeshStandardMaterial({color:0xcbbca3,roughness:1});
     function polygon(points,kind,height=.05,holes=[]){
@@ -30,15 +33,15 @@ export async function createCity(scene,onLocal){
     }
     for(const e of elements){const t=e.tags||{};if(!coarse&&overviewIds.has(`${e.type}/${e.id}`))continue;
       if(t.natural==='water'&&e.members){const outer=stitchRings(e.members,'outer').map(r=>r.map(pos)),inner=stitchRings(e.members,'inner').map(r=>r.map(pos));outer.forEach(r=>polygon(r,'water',.1,inner.filter(h=>contains(h[0],r))));continue;}
-      const pts=e.geometry?.filter(p=>Number.isFinite(p.lat)).map(pos);if(!pts||pts.length<2)continue;
+      const pts=e.geometry?.filter(p=>Number.isFinite(p.lat)&&Number.isFinite(p.lon)).map(pos);if(!pts||pts.length<2)continue;
       if(t.building&&!coarse)detailed.push({item:e,points:pts});
       else if(t.natural==='water')polygon(pts,'water',.1);
       else if(['farmland','farmyard','orchard','forest','grass','meadow','recreation_ground'].includes(t.landuse)||['park','garden','pitch'].includes(t.leisure))polygon(pts,['farmland','farmyard','orchard'].includes(t.landuse)?'field':'green',.03);
       else if(t.highway&&t.tunnel!=='yes'&&!['proposed','construction'].includes(t.highway)){
         if(isMappedSidewalk(e))continue;
-        const width=roadWidth(t),v=[];
-        for(let i=1;i<pts.length;i++){const [a,b]=[pts[i-1],pts[i]],dx=b[0]-a[0],dz=b[1]-a[1],len=Math.hypot(dx,dz);if(len<.1)continue;const x=-dz/len*width/2,z=dx/len*width/2,y=coarse?.13:.22;v.push(a[0]+x,y,a[1]+z,b[0]+x,y,b[1]+z,b[0]-x,y,b[1]-z,a[0]+x,y,a[1]+z,b[0]-x,y,b[1]-z,a[0]-x,y,a[1]-z);}
-        if(v.length){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(v,3));g.computeVertexNormals();(['footway','path','pedestrian','steps','cycleway'].includes(t.highway)?buckets.path:buckets.road).push(g);}
+        const y=t.bridge&&t.bridge!=='no'?1.2:.2;
+        const g=roadSurface(pts,roadWidth(t),y,{caps:true});
+        if(g){(['footway','path','pedestrian','steps','cycleway'].includes(t.highway)?buckets.path:buckets.road).push(g);}
       }
     }
     for(const [kind,gs]of Object.entries(buckets)){if(!gs.length)continue;const merged=mergeGeometries(gs);gs.forEach(g=>g.dispose());if(!merged)continue;const mesh=new THREE.Mesh(merged,mats[kind]);mesh.receiveShadow=true;mesh.castShadow=kind==='building';group.add(mesh);}

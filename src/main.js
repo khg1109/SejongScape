@@ -9,11 +9,12 @@ import { createEnvironment, surfaceTexture } from './environment.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createCity } from './city.js';
 import {createSidewalkRenderer,isMappedSidewalk} from './sidewalk.js';
+import {roadSurface} from './2026-11-04-road-surface.js';
 import './style.css';
 
 document.querySelector('#app').innerHTML = `
   <main id="scene" aria-label="세종시 3D 지도"></main>
-  <header><a class="brand" href="/">S<span>·</span> <b>SEJONGSCAPE</b></a><a href="/real.html" style="color:inherit;font-size:14px">실제 3D 지도 ↗</a><a href="/traffic" style="color:inherit;font-size:14px">실제 교통정보 ↗</a><a href="/sumo" style="color:inherit;font-size:14px">SUMO 교통 실험 ↗</a><button id="sources-button">재현 기준</button><button id="theme" aria-pressed="false">☀ 낮으로 보기</button></header>
+  <header><a class="brand" href="/">S<span>·</span> <b>SEJONGSCAPE</b></a><a href="/real.html" style="color:inherit;font-size:14px">실제 3D 지도 ↗</a><a href="/traffic" style="color:inherit;font-size:14px">실제 교통정보 ↗</a><a href="/sumo" style="color:inherit;font-size:14px">CSV 통행 재생 ↗</a><a href="/2026-11-03-road-lab.html" style="color:inherit;font-size:14px">SUMO 도로 변경 실험 ↗</a><button id="sources-button">재현 기준</button><button id="theme" aria-pressed="false">☀ 낮으로 보기</button></header>
   <section class="intro"><div class="eyebrow"><span class="dot"></span> 세종특별자치시 · 전 지역</div><h1>세종을,<br>다른 시선으로.</h1><p>신도심에서 조치원, 읍·면 마을까지.<br>지도 위의 세종을 입체로 만나보세요.</p><div class="coordinates">36.5010° N &nbsp; 127.2690° E</div></section>
   <aside class="places" aria-label="장소 이동"><div class="panel-title">어디로 가볼까요 <span>↗</span></div><button data-place="overview" class="active"><span>01</span> 도시 한눈에 <i>↗</i></button><button data-place="government"><span>02</span> 정부세종청사 <i>↗</i></button><button data-place="lake"><span>03</span> 세종호수공원 <i>↗</i></button><button data-place="library"><span>04</span> 국립세종도서관 <i>↗</i></button><div class="view-modes"><button id="orbit" class="active" aria-pressed="true">조감도</button><button id="walk" aria-pressed="false">거리 시점</button></div></aside>
   <section class="activity-panel" aria-label="도시의 움직임"><div class="panel-title">도시의 움직임 <span class="dot"></span></div><label for="period">시간대</label><select id="period"><option value="morning">출근 · 08:00</option><option value="day">낮 · 13:00</option><option value="evening" selected>퇴근 · 18:00</option><option value="night">밤 · 22:00</option></select><p id="activity-count" aria-live="polite"></p><div class="activity-actions"><button id="activity-focus">사람 많은 길 보기 ↗</button><button id="activity-pause" aria-pressed="false">일시정지</button></div><small>지도 기반 교통시설 · 신호 주기·교통량은 시뮬레이션</small></section>
@@ -26,7 +27,7 @@ document.querySelector('#app').innerHTML = `
 const status = document.querySelector('#loading');
 let renderer;
 try {
-  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true, powerPreference: 'high-performance' });
 } catch {
   status.innerHTML = '<p>3D 화면을 시작할 수 없습니다.</p><small>WebGL을 지원하는 브라우저에서 하드웨어 가속을 켜고 다시 열어주세요.</small>';
 }
@@ -76,9 +77,9 @@ async function start() {
   const waterNormals=createWaterNormals();
   const waterMat = new THREE.MeshStandardMaterial({color:0x267f8b,roughness:.22,metalness:.45,normalMap:waterNormals,normalScale:new THREE.Vector2(.3,.3)});
   const parkMat = new THREE.MeshStandardMaterial({color:0x264c3a,roughness:1});
-  const roadMat = new THREE.MeshStandardMaterial({color:0x72797b,map:surfaceTexture('asphalt'),roughness:.95});
+  const roadMat = new THREE.MeshStandardMaterial({color:0x596873,map:surfaceTexture('asphalt'),roughness:.95});
   const pathMat = new THREE.MeshStandardMaterial({color:0xbab7a7,map:surfaceTexture('path'),roughness:1});
-  const bridgeMat = new THREE.MeshStandardMaterial({color:0x788389,roughness:.95});
+  const bridgeMat = roadMat; // One asphalt material for base roads, bridges and city tiles.
   const architecture=createArchitecture();
   const buildings = [];
   const pos = p => project(p,data.center);
@@ -114,15 +115,18 @@ async function start() {
       const width=roadWidth(tags);
       const bridge=tags.bridge && tags.bridge!=='no';
       const y=bridge?1.2:.2;
+      const pavement=roadSurface(points,width,y,{caps:true});
+      if(pavement)(bridge?bridgeGeo:pedestrian?pathGeo:roadGeo).push(pavement);
+      if(!pedestrian&&width>=7){
+        if(!['yes','-1'].includes(tags.oneway)){const line=roadSurface(points,.18,y+.035);if(line)markings.push(line);}
+        for(const side of [-1,1]){const line=roadSurface(points,.12,y+.04,{offset:(width/2-.35)*side});if(line)whiteMarkings.push(line);}
+      }
       for(let i=1;i<points.length;i++) {
         const a=points[i-1], b=points[i];
         if(Math.hypot(b[0]-a[0],b[1]-a[1])<.1) continue;
-        (bridge?bridgeGeo:pedestrian?pathGeo:roadGeo).push(strip(a,b,width,y));
         if(!pedestrian && width>=7) {
           const one=['yes','-1'].includes(tags.oneway);
-          if(!one)markings.push(strip(a,b,.18,y+.035));
           const dx=b[0]-a[0],dz=b[1]-a[1],len=Math.hypot(dx,dz),nx=-dz/len,nz=dx/len;
-          for(const side of [-1,1]){const offset=(width/2-.35)*side;whiteMarkings.push(strip([a[0]+nx*offset,a[1]+nz*offset],[b[0]+nx*offset,b[1]+nz*offset],.12,y+.04));}
           const lanes=Number.parseInt(tags.lanes)||Math.max(2,Math.round(width/3.4));
           for(let lane=1;lane<lanes;lane++){
             const offset=-width/2+width*lane/lanes;if(!one&&Math.abs(offset)<.3)continue;
@@ -192,7 +196,6 @@ async function start() {
     city?.setNight(night);
     hemisphere.intensity=night?1.8:1.65; sun.intensity=night?1.1:2.1;renderer.toneMappingExposure=night?1:.9;
     groundMat.color.set(night?0x5e7773:0xc4c9b0);
-    roadMat.color.set(night?0x596873:0xaab0b0);
     parkMat.color.set(night?0x264c3a:0x64845c);
     waterMat.color.set(night?0x267f8b:0x50a4ae);
     document.querySelector('#theme').textContent=night?'☀ 낮으로 보기':'☾ 밤으로 보기';
@@ -280,7 +283,7 @@ async function start() {
     const paused=mobility.paused;mobility.dispose();
     mobility=createMobility(scene,{center:data.center,elements:nearby},Math.min(1,Math.max(.06,count/1800)));
     mobility.populate(document.querySelector('#period').value);mobility.setPaused(paused);mobility.setNight(night);activityCounts();
-  });
+  },new Set(data.elements.map(e=>e.type+'/'+e.id)),roadMat);
   city.setNight(night);city.update(0,0);
   const options=[['세종 전체',36.57,127.27,31000],['조치원읍',36.601,127.298,2400],['한솔동',36.479,127.254,1800],['나성동',36.486,127.263,1800],['보람동 · 시청',36.480,127.289,2000],['소담동',36.485,127.301,2000],['아름·종촌·고운동',36.513,127.246,2500],['도담·어진동',36.512,127.261,2300],['반곡·집현동',36.491,127.314,2300],['해밀동',36.531,127.268,2000],['연기면',36.543,127.273,2400],['연동면',36.559,127.328,2600],['연서면',36.592,127.271,3000],['장군면',36.496,127.205,3000],['금남면',36.464,127.280,3000],['부강면',36.530,127.370,2700],['전의면',36.681,127.196,3200],['전동면',36.657,127.266,3200],['소정면',36.722,127.158,2400]];
   const label=document.createElement('label');label.className='region-picker';label.textContent='지역 이동';

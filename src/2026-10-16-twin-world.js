@@ -7,11 +7,13 @@ import {createArchitecture} from './architecture.js';
 import {surfaceTexture,segmentDistance} from './environment.js';
 import {createSidewalkRenderer} from './sidewalk.js';
 import {createTwinLandscape} from './2026-10-16-twin-landscape.js';
+import {roadWidth} from './mobility-model.js';
+import {roadSurface} from './2026-11-04-road-surface.js';
 import {roadProfile,ribbon} from './2026-10-16-twin-geometry.js';
 
 const landmarkNames=new Set(['국립세종도서관','대통령기록관']);
 const key=(a,b)=>[`${Math.round(a[0])},${Math.round(a[1])}`,`${Math.round(b[0])},${Math.round(b[1])}`].sort().join('|');
-export async function createTwinWorld(scene,renderer) {
+export async function createTwinWorld(scene,renderer,options={}) {
  const response=await fetch('/data/city.json');if(!response.ok)throw Error('도시 외곽선 자료를 불러오지 못했습니다.');
  const index=await response.json(),baseResponse=await fetch('/data/sejong.json');if(!baseResponse.ok)throw Error('도심 지도 자료를 불러오지 못했습니다.');const base=await baseResponse.json(),root=new THREE.Group();scene.add(root);
  renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.9;
@@ -23,7 +25,7 @@ export async function createTwinWorld(scene,renderer) {
  const ground=new THREE.Mesh(new THREE.PlaneGeometry(180000,180000),groundMat);ground.rotation.x=-Math.PI/2;ground.position.set(0,-.2,-15000);ground.receiveShadow=true;root.add(ground);
  const asphalt=surfaceTexture('asphalt'),paving=surfaceTexture('path');asphalt.anisotropy=paving.anisotropy=8;
  const mats={
-  road:new THREE.MeshStandardMaterial({color:0x7b858b,map:asphalt,roughness:.93}),
+  road:options.roadMaterial??new THREE.MeshStandardMaterial({color:0x7b858b,map:asphalt,roughness:.93}),
   path:new THREE.MeshStandardMaterial({color:0xd6cebb,map:paving,roughness:1}),
   curb:new THREE.MeshStandardMaterial({color:0xa7a99e,roughness:.95}),
   water:new THREE.MeshStandardMaterial({color:0x498e9a,metalness:.35,roughness:.24}),
@@ -41,7 +43,7 @@ export async function createTwinWorld(scene,renderer) {
  const shapeOf=points=>new THREE.Shape(points.map(p=>new THREE.Vector2(p[0],-p[1])));
  function build(elements,coarse=false){
   const group=new THREE.Group(),buckets={},buildingItems=[],segments=[];
-  function add(kind,g){const flat=g.index?g.toNonIndexed():g;flat.deleteAttribute('uv');const a=flat.attributes.position,uv=[];for(let i=0;i<a.count;i++)uv.push(a.getX(i)/12,a.getZ(i)/12);flat.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));(buckets[kind]??=[]).push(flat);if(flat!==g)g.dispose();}
+  function add(kind,g){const flat=g.index?g.toNonIndexed():g;flat.deleteAttribute('uv');const a=flat.attributes.position,uv=[],scale=kind==='road'&&options.roadMaterial?.map ? .25:1/12;for(let i=0;i<a.count;i++)uv.push(a.getX(i)*scale,a.getZ(i)*scale);flat.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));(buckets[kind]??=[]).push(flat);if(flat!==g)g.dispose();}
   function surface(points,kind,y,holes=[]){if(points.length<4)return;const shape=shapeOf(points);shape.holes=holes.map(p=>new THREE.Path(p.map(q=>new THREE.Vector2(q[0],-q[1]))));const g=new THREE.ShapeGeometry(shape);g.rotateX(-Math.PI/2);g.translate(0,y,0);add(kind,g);}
   const raw={road:[],path:[],curb:[],white:[],yellow:[]};
   for(const e of elements){
@@ -59,8 +61,12 @@ export async function createTwinWorld(scene,renderer) {
    else if(['residential','commercial','industrial','retail'].includes(t.landuse))surface(pts,'urban',0);
    else if(t.amenity==='parking')surface(pts,'road',.11);
    if(!t.highway||t.tunnel==='yes'||['proposed','construction','bus_stop','crossing','traffic_signals'].includes(t.highway))continue;
-   const p=roadProfile(t),y=coarse?.14:p.y;
-   raw[p.pedestrian?'path':'road'].push(...ribbon(pts,p.width,y));
+   if(options.sumoWayIds?.has(e.id))continue;
+   const p=roadProfile(t);
+   if(options.mainRoadStyle){p.width=roadWidth(t);p.lanes=Number.parseInt(t.lanes)||Math.max(2,Math.round(p.width/3.4));}
+   const y=coarse?.14:p.y,kind=p.pedestrian?'path':'road';
+   if(options.mainRoadStyle){const surface=roadSurface(pts,p.width,y,{caps:true});if(surface)add(kind,surface);}
+   else raw[kind].push(...ribbon(pts,p.width,y));
    if(coarse)continue;
    for(let i=1;i<pts.length;i++){
     const a=pts[i-1],b=pts[i],len=Math.hypot(b[0]-a[0],b[1]-a[1]);if(len<.1)continue;
