@@ -5,15 +5,18 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/2026-11-07-dev.mjs",
-    "build": "npm run data:offline && vite build",
+    "build": "node scripts/2026-11-07-build-actual.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "data:fetch": "node scripts/fetch-map.mjs",
-    "build:web": "npm run data:offline && vite build",
+    "build:web": "node scripts/2026-11-07-build-actual.mjs",
     "dev:aws": "node scripts/2026-11-07-dev.mjs --aws",
     "dev:local": "node scripts/2026-11-07-dev.mjs --local",
     "data:offline": "node scripts/2026-11-07-offline-data.mjs",
     "build:protected": "vite build && node scripts/build-server.mjs",
-    "test:offline": "node --test scripts/2026-11-07-offline-data.test.mjs scripts/2026-11-07-aws-data.test.mjs && node scripts/2026-10-16-test-trip-data.mjs && node scripts/2026-10-16-test-dispersal.mjs"
+    "test:offline": "node --test scripts/2026-11-07-offline-data.test.mjs scripts/2026-11-07-aws-data.test.mjs && node scripts/2026-10-16-test-trip-data.mjs && node scripts/2026-10-16-test-dispersal.mjs",
+    "dev:demo": "node scripts/2026-11-07-dev.mjs --demo",
+    "data:actual": "node scripts/2026-11-07-actual-data.mjs",
+    "build:demo": "npm run data:offline && vite build"
   },
   "dependencies": {
     "three": "^0.186.0",

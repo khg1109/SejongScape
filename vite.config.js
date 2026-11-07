@@ -3,11 +3,12 @@ import {fileURLToPath} from 'node:url';
 import {createReadStream} from 'node:fs';
 import {stat} from 'node:fs/promises';
 import {resolve, sep, extname} from 'node:path';
+import {actualDataPlugin} from './server/2026-11-07-actual-data.mjs';
 import {awsDataPlugin} from './server/2026-11-07-aws-data.mjs';
 import {localTrafficPlugin} from './server/2026-11-05-local-traffic.mjs';
 
 export default defineConfig(({mode}) => ({
-  plugins: [awsDataPlugin(), {
+  plugins: [actualDataPlugin(), awsDataPlugin(), {
     name:'live-sumo-output', apply:'serve',
     configureServer(server){
       // These files are created after startup and deliberately excluded from HMR.

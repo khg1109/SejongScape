@@ -63,3 +63,8 @@ __pycache__/
 # Reviewed public aggregate-derived replay bundle only
 !/public/data/2026-11-07-offline/
 !/public/data/2026-11-07-offline/**
+
+# Encrypted AWS snapshot only; keys and decrypted data remain ignored
+!/public/data/2026-11-07-aws-encrypted/
+!/public/data/2026-11-07-aws-encrypted/**
+*data-key*
